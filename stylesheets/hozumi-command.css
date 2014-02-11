@@ -1,0 +1,10 @@
+.command-area {
+  background-color: #c0c0c0;
+  margin: 5px;
+  padding: 10px;
+  font-size: 90%;
+  border-radius: 3px;
+}
+img {
+  padding: 10px;
+}
