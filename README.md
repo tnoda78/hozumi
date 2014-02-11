@@ -2,7 +2,7 @@
 
 ```
 git clone git clone https://github.com/tnoda78/hozumi-command.git
-cd gohozumi
+cd hozumi-command
 go run hozumi.go
 ```
 
