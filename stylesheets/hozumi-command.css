@@ -1,3 +1,10 @@
+body {
+  width: 100%;
+}
+.wrapper {
+  margin: 0 auto;
+  width: 880px;
+}
 .command-area {
   background-color: #c0c0c0;
   margin: 5px;
