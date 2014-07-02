@@ -7,7 +7,7 @@ http://tnoda78.github.io/hozumi-command/
 ```
 git clone git clone https://github.com/tnoda78/hozumi-command.git
 cd hozumi-command
-go run hozumi.go
+go run main.go
 ```
 
 ## Example
