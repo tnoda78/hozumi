@@ -1,15 +1,15 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	"github.com/jessevdk/go-flags"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 )
 
-var versionName = "1.2.4"
+var versionName = "1.2.5"
 
 var message = `
 Hozumi Command
@@ -26,8 +26,15 @@ OPTIONS:
   -s, --speed {low|middle|high}         He displays by specified speed.
   -c. --cool                            He sometimes shouts, "Cool".
   -g. --graphical                       He dances. (This option is not supporting Windows OS)
-
 `
+
+var opts struct {
+	Help bool `short:"h" long:"help" description:"He displays help message."`
+	Version bool `short:"v" long:"version" description:"He displays his version."`
+	Speed string `short:"s" long:"speed" description:"He displays by specified speed." default:"middle"`
+	Cool bool `short:"c" long:"cool" description:"He sometimes shouts, \"Cool\"."`
+	Graphical bool `short:"g" long:"graphical" description:"He dances. (This option is not supporting Windows OS)"`
+}
 
 func main() {
 	c := make(chan os.Signal, 1)
@@ -38,8 +45,8 @@ func main() {
 			os.Exit(0)
 		}
 	}()
-	hozumiWriter := setup()
-	hozumiWriter.write()
+  hozumiWriter := setup()
+  hozumiWriter.write()
 }
 
 type HozumiWriter struct {
@@ -52,57 +59,45 @@ type HozumiWriter struct {
 }
 
 func setup() *HozumiWriter {
-	var (
-		version			bool
-		help				bool
-		cool				bool
-		speed				string
-		graphical		bool
-	)
-	flag.BoolVar(&graphical, "g", false, "display help")
-	flag.BoolVar(&graphical, "graphical", false, "display help")
-	flag.BoolVar(&version, "v", false, "display help")
-	flag.BoolVar(&version, "version", false, "display help")
-	flag.BoolVar(&help, "h", false, "display help")
-	flag.BoolVar(&help, "help", false, "display help")
-	flag.BoolVar(&cool, "c", false, "display cool")
-	flag.BoolVar(&cool, "cool", false, "display cool")
-	flag.StringVar(&speed, "s", "middle", "set Display Speed")
-	flag.StringVar(&speed, "speed", "middle", "Display Speed")
-	flag.Usage = displayHelpMessage
-	writer := new(HozumiWriter)
-	flag.Parse()
-	if help {
+	args, err := flags.Parse(&opts)
+	if err != nil {
 		displayHelpMessage()
 	}
-	if version {
+	if opts.Help {
+		displayHelpMessage()
+	}
+	if opts.Version {
 		fmt.Printf("Hozumi Command version (%s)\n", versionName)
 		os.Exit(0)
 	}
-	if len(flag.Args()) > 0 {
-		writer.contents = flag.Args()
+
+	writer := new(HozumiWriter)
+
+	if len(args) > 0 {
+		writer.contents = args
 	} else {
 		writer.contents = []string{"ほずみ"}
 	}
 	var intervalDisplayRow time.Duration
 	var intervalDisplayOneLetter time.Duration
-	if speed == "low" {
+
+	if opts.Speed == "low" {
 		intervalDisplayRow = 600 * time.Millisecond
 		intervalDisplayOneLetter = 270 * time.Millisecond
-	} else if speed == "middle" {
+	} else if opts.Speed == "middle" {
 		intervalDisplayRow = 300 * time.Millisecond
 		intervalDisplayOneLetter = 180 * time.Millisecond
-	} else if speed == "high" {
+	} else if opts.Speed == "high" {
 		intervalDisplayRow = 150 * time.Millisecond
 		intervalDisplayOneLetter = 90 * time.Millisecond
-	} else {
+	} else if opts.Speed != "" {
 		displayHelpMessage()
 	}
 	writer.intervalDisplayRow = intervalDisplayRow
 	writer.intervalDisplayOneLetter = intervalDisplayOneLetter
-	writer.cool = cool
+	writer.cool = opts.Cool
 	writer.intervalDisplayCool = 10 * time.Millisecond
-	if graphical {
+	if opts.Graphical {
 		writer.displayGraphicalLoop()
 	}
 	return writer
