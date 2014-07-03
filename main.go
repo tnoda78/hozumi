@@ -27,7 +27,7 @@ OPTIONS:
   -v, --version                         He displays his version.
   -s, --speed {low|middle|high}         He displays by specified speed.
   -c. --cool                            He sometimes shouts, "Cool".
-	-p  --parallel                        He displays in parallel.
+  -p  --parallel                        He displays in parallel.
 `
 
 var opts struct {
