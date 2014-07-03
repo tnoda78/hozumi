@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"github.com/jessevdk/go-flags"
+	"github.com/mattn/go-runewidth"
+	"github.com/nsf/termbox-go"
 	"os"
-	"os/signal"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
-var versionName = "1.2.5"
+var versionName = "2.0.0"
 
 var message = `
 Hozumi Command
@@ -25,7 +27,6 @@ OPTIONS:
   -v, --version                         He displays his version.
   -s, --speed {low|middle|high}         He displays by specified speed.
   -c. --cool                            He sometimes shouts, "Cool".
-  -g. --graphical                       He dances. (This option is not supporting Windows OS)
 `
 
 var opts struct {
@@ -33,20 +34,26 @@ var opts struct {
 	Version bool `short:"v" long:"version" description:"He displays his version."`
 	Speed string `short:"s" long:"speed" description:"He displays by specified speed." default:"middle"`
 	Cool bool `short:"c" long:"cool" description:"He sometimes shouts, \"Cool\"."`
-	Graphical bool `short:"g" long:"graphical" description:"He dances. (This option is not supporting Windows OS)"`
 }
 
 func main() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for sig := range c {
-			fmt.Println("\033[0m", sig)
-			os.Exit(0)
-		}
-	}()
   hozumiWriter := setup()
-  hozumiWriter.write()
+	err := termbox.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close()
+
+  go hozumiWriter.write()
+loop:
+	for {
+		switch ev := termbox.PollEvent(); ev.Type {
+		case termbox.EventKey:
+			break loop
+		case termbox.EventResize:
+			hozumiWriter.write()
+		}
+	}
 }
 
 type HozumiWriter struct {
@@ -59,13 +66,19 @@ type HozumiWriter struct {
 }
 
 func setup() *HozumiWriter {
-	args, err := flags.Parse(&opts)
+	p := flags.NewParser(&opts, flags.PrintErrors)
+	args, err := p.Parse()
+
 	if err != nil {
 		displayHelpMessage()
+		os.Exit(1)
 	}
+
 	if opts.Help {
 		displayHelpMessage()
+		os.Exit(0)
 	}
+
 	if opts.Version {
 		fmt.Printf("Hozumi Command version (%s)\n", versionName)
 		os.Exit(0)
@@ -92,102 +105,89 @@ func setup() *HozumiWriter {
 		intervalDisplayOneLetter = 90 * time.Millisecond
 	} else if opts.Speed != "" {
 		displayHelpMessage()
+		os.Exit(1)
 	}
 	writer.intervalDisplayRow = intervalDisplayRow
 	writer.intervalDisplayOneLetter = intervalDisplayOneLetter
 	writer.cool = opts.Cool
 	writer.intervalDisplayCool = 10 * time.Millisecond
-	if opts.Graphical {
-		writer.displayGraphicalLoop()
-	}
 	return writer
 }
 
 func displayHelpMessage() {
 	fmt.Printf(message, versionName)
-	os.Exit(0)
 }
 
 func (writer *HozumiWriter) write() {
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	_, ymax := termbox.Size()
 	for {
-		writer.displayContents()
-		if writer.cool {
-			writer.displayCool()
+		y := 0
+		for ; y < ymax; {
+			for _, content := range writer.contents {
+				writer.draw_row(content, y)
+				time.Sleep(50 * time.Millisecond)
+				y++
+			}
+			if writer.cool {
+				writer.displayCool(y)
+				y++
+			}
 		}
+		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	}
 }
 
-func (writer *HozumiWriter) displayContents() {
-	for _, content := range writer.contents {
-		writer.display(content)
-		writer.displayAll(content)
+func (writer *HozumiWriter) draw_row(message string, y int) {
+	str := ""
+	for _, letter := range strings.Split(message, "") {
+		str = str + letter
+		set_row(str, y, termbox.ColorDefault)
+		termbox.Flush()
+		time.Sleep(writer.intervalDisplayRow)
 	}
+	clear_row(y)
+	time.Sleep(writer.intervalDisplayRow)
+	str = ""
+	for _, letter := range strings.Split(message, "") {
+		str = str + letter
+		set_row(str, y, termbox.ColorDefault)
+		termbox.Flush()
+		time.Sleep(writer.intervalDisplayOneLetter)
+	}
+	time.Sleep(writer.intervalDisplayRow)
 }
 
-func (writer *HozumiWriter) display(content string) {
-	writer.dashboard = append(writer.dashboard, "")
-	row := len(writer.dashboard) - 1
-	for _, letter := range strings.Split(content, "") {
-		writer.dashboard[row] = letter
-		writer.updateDashboard(writer.intervalDisplayRow)
-	}
-}
-
-func (writer *HozumiWriter) displayAll(content string) {
-	row := len(writer.dashboard) - 1
+func (writer *HozumiWriter) displayCool(y int) {
+	content := "Cooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooool!"
 	str := ""
 	for _, letter := range strings.Split(content, "") {
 		str = str + letter
-		writer.dashboard[row] = str
-		writer.updateDashboard(writer.intervalDisplayOneLetter)
-	}
-	writer.updateDashboard(writer.intervalDisplayRow)
-}
-
-func (writer *HozumiWriter) displayCool() {
-	content := "Cooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooool!"
-	writer.dashboard = append(writer.dashboard, "")
-	row := len(writer.dashboard) - 1
-	for i := 0; i < len(content); i++ {
-		writer.dashboard[row] = content[0:i + 1]
-		writer.updateDashboard(writer.intervalDisplayCool)
+		set_row(str, y, termbox.ColorYellow)
+		termbox.Flush()
+		time.Sleep(writer.intervalDisplayCool)
 	}
 }
 
-func (writer *HozumiWriter) displayGraphicalLoop() {
-	str1 := []string{
-	"\033[33m-  -  \033[34m----  \033[33m----  \033[34m-  -  \033[33m-   -  \033[34m--- ",
-	"\033[33m-  -  \033[34m-  -  \033[33m  -   \033[34m-  -  \033[33m-- --  \033[34m -  ",
-	"\033[33m----  \033[34m-  -  \033[33m -    \033[34m-  -  \033[33m- - -  \033[34m -  ",
-	"\033[33m-  -  \033[34m-  -  \033[33m-     \033[34m-  -  \033[33m-   -  \033[34m -  ",
-	"\033[33m-  -  \033[34m----  \033[33m----  \033[34m----  \033[33m-   -  \033[34m--- ",
-	}
+func set_row(message string, y int, fg termbox.Attribute) {
 
-	for {
-		for i := 0; i <= 40; i++ {
-			writer.displayGraphical(str1, i)
+	x := 0
+
+	for len(message) > 0 {
+		c, w := utf8.DecodeRuneInString(message)
+		if c == utf8.RuneError {
+			c = '?'
+			w = 1
 		}
-		for i := 40; i >= 0; i-- {
-			writer.displayGraphical(str1, i)
-		}
+		message = message[w:]
+		termbox.SetCell(x, y, c, fg, termbox.ColorDefault)
+		x += runewidth.RuneWidth(c)
 	}
 }
 
-func (writer *HozumiWriter) displayGraphical(content []string, space int) {
-	var output = make([]string, len(content))
-	for i := 0; i < len(content); i++ {
-		output[i] = strings.Repeat(" ", space) + content[i]
-	}
-	writer.dashboard = output
-	writer.updateDashboard(writer.intervalDisplayOneLetter)
-}
-
-func (writer *HozumiWriter) updateDashboard(interval time.Duration) {
-	str := strings.Join(writer.dashboard, "\n") + "\n"
-	os.Stdout.Write([]byte(str))
-	time.Sleep(interval)
-	for i := 0; i < len(writer.dashboard); i++ {
-		fmt.Printf("\033[A\033[2K")
+func clear_row(y int) {
+	xmax, _ := termbox.Size()
+	for x := 0; x < xmax; x++ {
+		termbox.SetCell(x, y, ' ', termbox.ColorDefault, termbox.ColorDefault)
 	}
 }
-
