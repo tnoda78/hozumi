@@ -27,6 +27,7 @@ OPTIONS:
   -v, --version                         He displays his version.
   -s, --speed {low|middle|high}         He displays by specified speed.
   -c. --cool                            He sometimes shouts, "Cool".
+	-p  --parallel                        He displays in parallel.
 `
 
 var opts struct {
@@ -34,6 +35,7 @@ var opts struct {
 	Version bool `short:"v" long:"version" description:"He displays his version."`
 	Speed string `short:"s" long:"speed" description:"He displays by specified speed." default:"middle"`
 	Cool bool `short:"c" long:"cool" description:"He sometimes shouts, \"Cool\"."`
+	Parallel bool `short:"p" long:"parallel" description:"He displeys in parallel."`
 }
 
 func main() {
@@ -51,7 +53,7 @@ loop:
 		case termbox.EventKey:
 			break loop
 		case termbox.EventResize:
-			hozumiWriter.write()
+			break loop
 		}
 	}
 }
@@ -124,17 +126,55 @@ func (writer *HozumiWriter) write() {
 	for {
 		y := 0
 		for ; y < ymax; {
-			for _, content := range writer.contents {
-				writer.draw_row(content, y)
-				time.Sleep(50 * time.Millisecond)
-				y++
+			if opts.Parallel {
+				writer.writer_contents_pararrel(y)
+			} else {
+				writer.write_contents(y)
 			}
+			y = y + len(writer.contents)
 			if writer.cool {
-				writer.displayCool(y)
 				y++
 			}
 		}
 		termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	}
+}
+
+func (writer *HozumiWriter) write_contents(row int) {
+	for i, content := range writer.contents {
+		writer.draw_row(content, row + i)
+		time.Sleep(50 * time.Millisecond)
+	}
+	if writer.cool {
+		writer.displayCool(row + len(writer.contents))
+	}
+}
+
+func (writer *HozumiWriter) writer_contents_pararrel(row int) {
+	var channum int
+	if writer.cool {
+		channum = len(writer.contents) + 1
+	} else {
+		channum = len(writer.contents)
+	}
+
+	c := make(chan int, channum)
+
+	for i, content := range writer.contents {
+		go func() {
+			writer.draw_row(content, row + i)
+			c <- 1
+		}()
+		time.Sleep(50 * time.Millisecond)
+	}
+	if writer.cool {
+		go func() {
+			writer.displayCool(row + len(writer.contents))
+			c <- 1
+		}()
+	}
+	for i := 0; i < channum; i++ {
+		<-c
 	}
 }
 
