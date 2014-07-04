@@ -31,22 +31,22 @@ OPTIONS:
 `
 
 var opts struct {
-	Help bool `short:"h" long:"help" description:"He displays help message."`
-	Version bool `short:"v" long:"version" description:"He displays his version."`
-	Speed string `short:"s" long:"speed" description:"He displays by specified speed." default:"middle"`
-	Cool bool `short:"c" long:"cool" description:"He sometimes shouts, \"Cool\"."`
-	Parallel bool `short:"p" long:"parallel" description:"He displeys in parallel."`
+	Help     bool   `short:"h" long:"help" description:"He displays help message."`
+	Version  bool   `short:"v" long:"version" description:"He displays his version."`
+	Speed    string `short:"s" long:"speed" description:"He displays by specified speed." default:"middle"`
+	Cool     bool   `short:"c" long:"cool" description:"He sometimes shouts, \"Cool\"."`
+	Parallel bool   `short:"p" long:"parallel" description:"He displeys in parallel."`
 }
 
 func main() {
-  hozumiWriter := setup()
+	hozumiWriter := setup()
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
 	}
 	defer termbox.Close()
 
-  go hozumiWriter.write()
+	go hozumiWriter.write()
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -125,7 +125,7 @@ func (writer *HozumiWriter) write() {
 	_, ymax := termbox.Size()
 	for {
 		y := 0
-		for ; y < ymax; {
+		for y < ymax {
 			if opts.Parallel {
 				writer.writer_contents_pararrel(y)
 			} else {
@@ -142,7 +142,7 @@ func (writer *HozumiWriter) write() {
 
 func (writer *HozumiWriter) write_contents(row int) {
 	for i, content := range writer.contents {
-		writer.draw_row(content, row + i)
+		writer.draw_row(content, row+i)
 		time.Sleep(50 * time.Millisecond)
 	}
 	if writer.cool {
@@ -162,7 +162,7 @@ func (writer *HozumiWriter) writer_contents_pararrel(row int) {
 
 	for i, content := range writer.contents {
 		go func() {
-			writer.draw_row(content, row + i)
+			writer.draw_row(content, row+i)
 			c <- 1
 		}()
 		time.Sleep(50 * time.Millisecond)
