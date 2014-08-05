@@ -165,7 +165,7 @@ func (writer *HozumiWriter) writer_contents_pararrel(row int) {
 			writer.draw_row(content, row+i)
 			c <- 1
 		}()
-		time.Sleep(90 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 	if writer.cool {
 		go func() {
